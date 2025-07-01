@@ -1,0 +1,64 @@
+<!-- <!DOCTYPE html>
+<html>
+<head>
+    <title>Lock Control</title>
+</head>
+<body>
+    <h2>Control Solenoid Lock</h2>
+
+    {% if message %}
+        <p style="color: green;">{{ message }}</p>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <label>Port:</label>
+        <select name="port">
+            <option value="1">Port 1</option>
+            <option value="2">Port 2</option>
+        </select><br><br>
+
+        <label>Password:</label>
+        <input type="password" name="password"><br><br>
+
+        <label>Confirm Password:</label>
+        <input type="password" name="confirm_password"><br><br>
+
+        <button type="submit">Unlock</button>
+    </form>
+</body>
+</html> -->
+
+
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lock Control</title>
+</head>
+<body>
+    <h2>Control Solenoid Lock</h2>
+
+    {% if message %}
+        <p style="color: green;">{{ message }}</p>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <label>Port:</label>
+        <select name="port">
+            <option value="1">Port 1</option>
+            <option value="2">Port 2</option>
+        </select><br><br>
+
+        <label>Password:</label>
+        <input type="password" name="password"><br><br>
+
+        <label>Confirm Password:</label>
+        <input type="password" name="confirm_password"><br><br>
+
+        <button type="submit">Unlock</button>
+    </form>
+</body>
+</html>

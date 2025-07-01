@@ -1,0 +1,113 @@
+// #include <WiFi.h>
+// #include <HTTPClient.h>
+
+// #define RXD2 16  // ESP32 RX (receive from Arduino TX) ⚠ use voltage divider
+// #define TXD2 17  // ESP32 TX (send to Arduino RX)
+
+// const char* ssid = "Airtel_suga_4436";
+// const char* password = "air21669";
+  
+// // Django API endpoint
+// const char* serverURL = "http://192.168.1.9:8000/api/get-latest-command/";
+
+// void setup() {
+//   Serial.begin(115200);  // Monitor
+//   Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);  // Communication to Arduino
+
+//   WiFi.begin(ssid, password);
+//   Serial.print("Connecting to WiFi");
+
+//   while (WiFi.status() != WL_CONNECTED) {
+//     delay(500);
+//     Serial.print(".");
+//   }
+//   Serial.println("\nConnected to WiFi");
+// }
+
+// void loop() {
+//   if (WiFi.status() == WL_CONNECTED) {
+//     HTTPClient http;
+//     http.begin(serverURL);
+
+//     int httpCode = http.GET();
+//     if (httpCode == 200) {
+//       String payload = http.getString();
+//       payload.trim();
+
+//       Serial.println("API Response: " + payload);
+
+//       if (payload == "open1" || payload == "open2") {
+//         Serial.println("Sending to Arduino: " + payload);
+//         Serial2.println(payload);  // Send to Arduino
+//       } else {
+//         Serial.println("No valid command from API");
+//       }
+//     } else {
+//       Serial.print("HTTP Error: ");
+//       Serial.println(httpCode);
+//     }
+
+//     http.end();
+//   } else {
+//     Serial.println("WiFi not connected");
+//   }
+
+//   delay(9000);  // Wait 5 seconds before checking again
+// }
+
+#include <WiFi.h>
+#include <HTTPClient.h>
+
+#define RXD2 16  // ESP32 RX (from Arduino TX) → optional
+#define TXD2 17  // ESP32 TX (to Arduino RX)
+
+const char* ssid = "Airtel_suga_4436";
+const char* password = "air21669";
+
+// Django API URL
+const char* serverURL = "http://192.168.1.9:8000/api/get-latest-command/";
+
+void setup() {
+  Serial.begin(115200);  // For ESP32 monitor
+  Serial2.begin(9600, SERIAL_8N1, RXD2, TXD2);  // Connects to Arduino
+
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\n✅ Connected to WiFi");
+}
+
+void loop() {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin(serverURL);
+
+    int httpCode = http.GET();
+    if (httpCode == 200) {
+      String payload = http.getString();
+      payload.trim();
+
+      Serial.println("🌐 API Response: " + payload);
+
+      if (payload == "open1" || payload == "open2") {
+        Serial.println("➡️ Sending to Arduino: " + payload);
+        Serial2.println(payload);  // Send command
+      } else {
+        Serial.println("⚠️ Invalid or empty command");
+      }
+    } else {
+      Serial.print("❌ HTTP Error: ");
+      Serial.println(httpCode);
+    }
+
+    http.end();
+  } else {
+    Serial.println("🚫 WiFi disconnected");
+  }
+
+  delay(9000);  // Wait 9 seconds between checks
+}

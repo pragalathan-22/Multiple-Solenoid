@@ -1,0 +1,73 @@
+// const int lock1 = 8;  // Relay IN1
+// const int lock2 = 9;  // Relay IN2
+
+// void setup() {
+//   Serial.begin(9600);
+//   pinMode(lock1, OUTPUT);
+//   pinMode(lock2, OUTPUT);
+
+//   // Initialize relays OFF (HIGH = inactive)
+//   digitalWrite(lock1, HIGH);
+//   digitalWrite(lock2, HIGH);
+// }
+
+// void loop() {
+//   if (Serial.available()) {
+//     String command = Serial.readStringUntil('\n');
+//     command.trim();
+
+//     Serial.print("Received: ");
+//     Serial.println(command);  // Debug output
+
+//     if (command == "open1") {
+//       digitalWrite(lock1, LOW); // activate relay
+//       delay(5000);              // hold for 5 seconds
+//       digitalWrite(lock1, HIGH); // deactivate
+//     } 
+//     else if (command == "open2") {
+//       digitalWrite(lock2, LOW);
+//       delay(5000);
+//       digitalWrite(lock2, HIGH);
+//     }
+//   }
+// }
+
+
+const int lock1 = 8;  // Relay 1 pin
+const int lock2 = 9;  // Relay 2 pin
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(lock1, OUTPUT);
+  pinMode(lock2, OUTPUT);
+
+  // Set both relays OFF initially (HIGH)
+  digitalWrite(lock1, HIGH);
+  digitalWrite(lock2, HIGH);
+}
+
+void loop() {
+  if (Serial.available()) {
+    String command = Serial.readStringUntil('\n');
+    command.trim();
+
+    Serial.print("🛠️ Received: ");
+    Serial.println(command);
+
+    if (command == "open1") {
+      Serial.println("🔓 Opening Lock 1");
+      digitalWrite(lock1, LOW);
+      delay(5000);
+      digitalWrite(lock1, HIGH);
+      Serial.println("🔒 Lock 1 Closed");
+    } 
+    else if (command == "open2") {
+      Serial.println("🔓 Opening Lock 2");
+      digitalWrite(lock2, LOW);
+      delay(5000);
+      digitalWrite(lock2, HIGH);
+      Serial.println("🔒 Lock 2 Closed");
+    }
+  }
+}
+
