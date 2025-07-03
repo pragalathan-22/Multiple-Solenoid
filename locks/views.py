@@ -1,134 +1,113 @@
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-# from django.http import HttpResponse
-# from django.shortcuts import render
-# from django.views import View
-
-# from .models import LockCommand
-
-
-# class SendLockCommand(APIView):
-#     def post(self, request):
-#         port = request.data.get('port')
-#         password = request.data.get('password')
-#         confirm_password = request.data.get('confirm_password')
-
-#         if not all([port, password, confirm_password]):
-#             return Response({'error': 'Missing fields'}, status=status.HTTP_400_BAD_REQUEST)
-
-#         if password != confirm_password:
-#             return Response({'error': 'Passwords do not match'}, status=status.HTTP_400_BAD_REQUEST)
-
-#         LockCommand.objects.create(
-#             port=port,
-#             password=password,
-#             confirm_password=confirm_password,
-#             confirmed=True
-#         )
-#         return Response({'message': 'Command created', 'command': f'open{port}'})
-
-
-# class GetLatestCommand(APIView):
-#     def get(self, request):
-#         cmd = LockCommand.objects.filter(confirmed=True).order_by('-created_at').first()
-#         if cmd:
-#             return HttpResponse(cmd.command_string(), content_type='text/plain')
-#         return HttpResponse("", content_type='text/plain')
-
-
-# class LockControlPage(View):
-#     def get(self, request):
-#         return render(request, 'locks/control.html')
-
-#     def post(self, request):
-#         port = request.POST.get('port')
-#         password = request.POST.get('password')
-#         confirm_password = request.POST.get('confirm_password')
-#         message = ""
-
-#         if not all([port, password, confirm_password]):
-#             message = "All fields are required."
-#         elif password != confirm_password:
-#             message = "Passwords do not match."
-#         else:
-#             LockCommand.objects.create(
-#                 port=port,
-#                 password=password,
-#                 confirm_password=confirm_password,
-#                 confirmed=True
-#             )
-#             message = f"Port {port} unlocked successfully."
-
-#         return render(request, 'locks/control.html', {'message': message})
-
 
 # views.py
-from rest_framework.views import APIView
+from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework import status
-from django.http import HttpResponse
-from django.shortcuts import render
-from django.views import View
+from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
-from datetime import timedelta
-
+from django.http import HttpResponse
 from .models import LockCommand
+from .serializers import LockCommandSerializer
+from .forms import LockCommandForm
 
-class SendLockCommand(APIView):
-    def post(self, request):
-        port = request.data.get('port')
-        password = request.data.get('password')
-        confirm_password = request.data.get('confirm_password')
+@api_view(['POST'])
+def create_command(request):
+    port = int(request.data.get('port'))
+    password = str(request.data.get('password'))
+    confirm_password = str(request.data.get('confirm_password'))
 
-        if not all([port, password, confirm_password]):
-            return Response({'error': 'Missing fields'}, status=status.HTTP_400_BAD_REQUEST)
+    if password != confirm_password:
+        return Response({"error": "Passwords do not match"}, status=400)
 
-        if password != confirm_password:
-            return Response({'error': 'Passwords do not match'}, status=status.HTTP_400_BAD_REQUEST)
+    if LockCommand.objects.filter(port=port, outtime__isnull=True).exists():
+        return Response({"error": "Port already in use. Close session before creating a new one."}, status=400)
 
-        LockCommand.objects.create(
-            port=port,
-            password=password,
-            confirm_password=confirm_password,
-            confirmed=True
-        )
-        return Response({'message': 'Command created', 'command': f'open{port}'})
+    command = LockCommand.objects.create(port=port, password=password, opentime=timezone.now())
+    return Response(LockCommandSerializer(command).data)
 
 
-class GetLatestCommand(APIView):
-    def get(self, request):
-        time_threshold = timezone.now() - timedelta(minutes=1)
-        cmd = LockCommand.objects.filter(confirmed=True, created_at__gte=time_threshold).order_by('-created_at').first()
-        if cmd:
-            response = HttpResponse(cmd.command_string(), content_type='text/plain')
-            cmd.confirmed = False  # Mark command as used
-            cmd.save()
-            return response
-        return HttpResponse("", content_type='text/plain')
+@api_view(['POST'])
+def open_existing_port(request):
+    port = int(request.data.get('port'))
+    password = str(request.data.get('password'))
+
+    session = LockCommand.objects.filter(port=port, password=password, outtime__isnull=True).order_by('-intime').first()
+
+    if not session:
+        return Response({"error": "No active session found or incorrect password"}, status=404)
+
+    session.outtime = timezone.now()
+    session.out_opened = False  # Mark as not yet opened
+    session.save()
+
+    return Response({
+        "success": True,
+        "message": f"Device retrieved. Session closed for port {port}.",
+        "id": session.id
+    })
 
 
-class LockControlPage(View):
-    def get(self, request):
-        return render(request, 'locks/control.html')
 
-    def post(self, request):
-        port = request.POST.get('port')
-        password = request.POST.get('password')
-        confirm_password = request.POST.get('confirm_password')
-        message = ""
+@api_view(['GET'])
+def list_all_sessions(request):
+    sessions = LockCommand.objects.all().order_by('-id')
+    serializer = LockCommandSerializer(sessions, many=True)
+    return Response(serializer.data)
 
-        if not all([port, password, confirm_password]):
-            message = "All fields are required."
-        elif password != confirm_password:
-            message = "Passwords do not match."
+
+def home(request):
+    return render(request, "index.html")
+
+
+def manage_sessions(request):
+    sessions = LockCommand.objects.all().order_by('-id')
+    edit_id = request.GET.get('edit')
+    delete_id = request.GET.get('delete')
+
+    if request.method == 'POST' and 'delete_all' in request.POST:
+        LockCommand.objects.all().delete()
+        return redirect('manage_sessions')
+
+    if edit_id:
+        session = get_object_or_404(LockCommand, id=edit_id)
+        if request.method == 'POST' and 'edit_session' in request.POST:
+            form = LockCommandForm(request.POST, instance=session)
+            if form.is_valid():
+                form.save()
+                return redirect('manage_sessions')
         else:
-            LockCommand.objects.create(
-                port=port,
-                password=password,
-                confirm_password=confirm_password,
-                confirmed=True
-            )
-            message = f"Port {port} unlocked successfully."
+            form = LockCommandForm(instance=session)
+        return render(request, 'manage_sessions.html', {
+            'sessions': sessions,
+            'edit_session': session,
+            'form': form
+        })
 
-        return render(request, 'locks/control.html', {'message': message})
+    if delete_id:
+        session = get_object_or_404(LockCommand, id=delete_id)
+        if request.method == 'POST' and 'confirm_delete' in request.POST:
+            session.delete()
+            return redirect('manage_sessions')
+        return render(request, 'manage_sessions.html', {
+            'sessions': sessions,
+            'delete_session': session
+        })
+
+    return render(request, 'manage_sessions.html', {'sessions': sessions})
+
+@api_view(['GET'])
+def get_latest_command(request):
+    now = timezone.now()
+
+    # Priority: outtime not opened yet
+    command = LockCommand.objects.filter(outtime__isnull=False, out_opened=False).order_by('-outtime').first()
+    if command and (now - command.outtime).total_seconds() <= 3:
+        command.out_opened = True
+        command.save()
+        return HttpResponse(f"open{command.port}", content_type="text/plain")
+
+    # Otherwise, open based on opentime
+    command = LockCommand.objects.filter(outtime__isnull=True).order_by('-intime').first()
+    if command and command.opentime and (now - command.opentime).total_seconds() <= 3:
+        return HttpResponse(f"open{command.port}", content_type="text/plain")
+
+    return HttpResponse("none", content_type="text/plain")

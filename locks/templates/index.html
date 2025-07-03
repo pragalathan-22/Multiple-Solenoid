@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Kiosk Charging Station</title>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      background: #f5f5f5;
+      padding: 40px 20px;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+    }
+
+    .port-buttons {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .port-button {
+      width: 150px;
+      height: 50px;
+      font-size: 16px;
+      font-weight: bold;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .blue {
+      background-color: #007bff;
+    }
+
+    .red {
+      background-color: #dc3545;
+    }
+
+    form {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    input {
+      display: block;
+      margin: 10px auto;
+      padding: 10px;
+      width: 220px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    form button {
+      background-color: #28a745;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    #response {
+      background: #dff0d8;
+      color: #3c763d;
+      border: 1px solid #d6e9c6;
+      padding: 15px 20px;
+      border-radius: 6px;
+      max-width: 400px;
+      text-align: center;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Kiosk Charging Station</h2>
+
+  <div class="port-buttons">
+    <button class="port-button blue" id="port1Btn" onclick="handlePortClick(1)">Port 1</button>
+    <button class="port-button blue" id="port2Btn" onclick="handlePortClick(2)">Port 2</button>
+  </div>
+
+  <div id="formContainer"></div>
+  <div id="response"></div>
+
+  <script>
+    const portStatus = { 1: 'available', 2: 'available' };
+
+    function handlePortClick(port) {
+      const container = document.getElementById('formContainer');
+      const isUsed = portStatus[port] === 'used';
+      container.innerHTML = '';
+
+      const form = document.createElement('form');
+      form.onsubmit = e => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+        data.port = port;
+        data.password = String(data.password);
+
+        if (!isUsed) {
+          data.confirm_password = String(data.confirm_password);
+          fetch('/api/create/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          })
+          .then(res => res.json())
+          .then(json => {
+            showResponse(json.message || json.error);
+            if (!json.error) {
+              portStatus[port] = 'used';
+              updatePortButton(port);
+              container.innerHTML = '';
+            }
+          });
+        } else {
+          fetch('/api/open-existing/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          })
+          .then(res => res.json())
+          .then(json => {
+            showResponse(json.message || json.error);
+            if (json.success) {
+              portStatus[port] = 'available';
+              updatePortButton(port);
+              container.innerHTML = '';
+            }
+          });
+        }
+      };
+
+      form.innerHTML += `<h3>${isUsed ? 'Retrieve Device' : 'Insert Device'} (Port ${port})</h3>`;
+      form.innerHTML += `<input type="password" name="password" placeholder="Enter Password" required>`;
+      if (!isUsed) {
+        form.innerHTML += `<input type="password" name="confirm_password" placeholder="Confirm Password" required>`;
+      }
+      form.innerHTML += `<button type="submit">${isUsed ? 'Reopen Port' : 'Open Port'}</button>`;
+
+      container.appendChild(form);
+    }
+
+    function updatePortButton(port) {
+      const btn = document.getElementById(`port${port}Btn`);
+      if (portStatus[port] === 'used') {
+        btn.classList.remove('blue');
+        btn.classList.add('red');
+      } else {
+        btn.classList.remove('red');
+        btn.classList.add('blue');
+      }
+    }
+
+    function showResponse(message) {
+      const responseDiv = document.getElementById('response');
+      responseDiv.innerText = message || 'No response';
+    }
+  </script>
+</body>
+</html>

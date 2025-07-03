@@ -1,18 +1,16 @@
-# from django.urls import path
-# from .views import SendLockCommand, GetLatestCommand, LockControlPage
 
-# urlpatterns = [
-#     path('send-command/', SendLockCommand.as_view()),
-#     path('get-latest-command/', GetLatestCommand.as_view()),
-#     path('control/', LockControlPage.as_view(), name='lock_control'),  # Web page UI
-# ]
 
-# urls.py
 from django.urls import path
-from .views import SendLockCommand, GetLatestCommand, LockControlPage
+from . import views
 
 urlpatterns = [
-    path('send-lock-command/', SendLockCommand.as_view(), name='send-lock-command'),
-    path('get-latest-command/', GetLatestCommand.as_view(), name='get-latest-command'),
-    path('control/', LockControlPage.as_view(), name='lock-control-page'),
+    path('', views.home),
+    path('create/', views.create_command),
+    path('open-existing/', views.open_existing_port),
+    path('get-latest-command/', views.get_latest_command),
+    path('sessions/', views.list_all_sessions),
+    path('manage/', views.manage_sessions, name='manage_sessions'),
 ]
+
+
+
