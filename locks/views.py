@@ -46,7 +46,6 @@ def open_existing_port(request):
     })
 
 
-
 @api_view(['GET'])
 def list_all_sessions(request):
     sessions = LockCommand.objects.all().order_by('-id')
